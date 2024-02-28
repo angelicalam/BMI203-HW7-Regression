@@ -129,7 +129,11 @@ class LogisticRegressor(BaseRegressor):
         Returns: 
             The predicted labels (y_pred) for given X.
         """
-        pass
+        # hypothesis: sigmoid function = 1 / 1 + exp(-z) returns the predicted probability,
+        # where z is the weighted sum of the features, plus a bias term
+        # (implicitly encoded since the last column of every row in X is 1)
+        z = np.dot(self.W, np.transpose(X))  # has shape (len(X), )
+        return 1 / (1 + np.exp(-1 * z))
     
     def loss_function(self, y_true, y_pred) -> float:
         """
@@ -143,7 +147,14 @@ class LogisticRegressor(BaseRegressor):
         Returns: 
             The mean loss (a single number).
         """
-        pass
+        assert len(y_true) == len(y_pred), "The number of true and predicted labels do not match."
+        # Binary cross entropy = −(𝑦log(𝑝)+(1−𝑦)log(1−𝑝))
+        # This equation outputs a value that is high when the probability of the true class
+        # is low, and decays exponentially as the probability approaches 1. 
+        # y is class 0 (cancer), so 1-y is class 1 (no cancer). 
+        # p is the predicted probability for class 0, so 1-p is the predicted probability for 1
+        BCE = np.mean( -1 * ((y_true * np.log(y_pred)) + ((1 - y_true) * np.log(1 - y_pred))) )
+        return BCE
         
     def calculate_gradient(self, y_true, X) -> np.ndarray:
         """
@@ -157,4 +168,23 @@ class LogisticRegressor(BaseRegressor):
         Returns: 
             Vector of gradients.
         """
-        pass
+        assert len(y_true) == len(X), "The number of labels and number of samples do not match."
+        # First, calculate the derivative of the loss for all weights
+        # BCE = −(𝑦log( 1 / (1 + np.exp(-1 * sum(w * feature))) ) +(1−𝑦)log(1−𝑝))
+        # (d/dw)(binary cross entropy) = d(BCE)/dp dp/dz dz/dw
+        # dz/dw : feature x associated with weight w
+        # dp/dz dz/dw : (exp(-z)/(1 + exp(-z))^2) * x
+        # d(BCE)/dp dp/dz dz/dw : (-y/p + (1-y)/(1-p)) * (exp(-z)/(1 + exp(-z))^2) * x
+        #       ( -y(1 + exp(-z)) + (1-y)(1 + exp(-z))/exp(-z) ) * (exp(-z)/(1 + exp(-z))^2) * x
+        #       ( -y + (1-y)/exp(-z) ) * (exp(-z)/(1 + exp(-z))) * x
+        #       ( -y * exp(-z)/(1 + exp(-z) )w + ( (1-y)/(1 + exp(-z)) )x
+        #       ( (-y * exp(-z) + 1-y) / (1 + exp(-z)) )x
+        # Then get the mean derivative across samples for each weight.
+        z = np.dot(self.W, np.transpose(X))
+        # mean d(BCE)/dp dp/dz dz/dw = 
+        # vector of shape (len(X), ) @ matrix X of shape (len(X), num_features) / num_features+1
+        # = vector of shape (num_features+1, ) where the +1 is for the bias term
+        grad = ( (-1*y_true * np.exp(-1*z) + 1 - y_true) / (1 + np.exp(-1*z)) ) @ X
+        grad = grad / len(X)
+        return grad
+        

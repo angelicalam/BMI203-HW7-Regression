@@ -9,6 +9,8 @@ unless you want to.
 # Imports
 from regression import (logreg, utils)
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_auc_score
+import numpy as np
 
 # Define main function
 def main():
@@ -35,9 +37,11 @@ def main():
 
     # For testing purposes, once you've added your code.
     # CAUTION: hyperparameters have not been optimized.
-    # log_model = logreg.LogisticRegressor(num_feats=6, learning_rate=0.00001, tol=0.01, max_iter=10, batch_size=10)
-    # log_model.train_model(X_train, y_train, X_val, y_val)
-    # log_model.plot_loss_history()
+    np.random.seed(42)
+    log_model = logreg.LogisticRegressor(num_feats=6, learning_rate=0.001, tol=0.001, max_iter=100, batch_size=50)
+    log_model.train_model(X_train, y_train, X_val, y_val)
+    print(roc_auc_score(y_val, log_model.make_prediction(np.hstack([X_val, np.ones((X_val.shape[0], 1))]))))
+    log_model.plot_loss_history()
 
 # Run main function if run as script
 if __name__ == "__main__":
